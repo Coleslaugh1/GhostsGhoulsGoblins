@@ -33,9 +33,8 @@ test_input <- vroom(file = "test.csv")
 # Recipes
 
 my_recipe <- recipe(type ~ ., data = rawdata) %>%
-  step_mutate_at(all_numeric_predictors(), fn = factor) %>%
-  step_other(all_predictors(), -all_outcomes(), threshold = 0.001) %>%
-  step_dummy(color)
+  step_dummy(color)` %>% 
+  step_rm(id)
 
 prep_recipe <- prep(my_recipe)
 baked_data <- bake(prep_recipe, new_data = rawdata)
@@ -77,7 +76,7 @@ tuning_grid <- grid_regular(rbf_sigma(),
 
 folds <- vfold_cv(rawdata, v = 10, repeats=1)
 
-cl <- makePSOCKcluster(4)
+cl <- makePSOCKcluster(10)
 registerDoParallel(cl)
 CV_results <- svm_workflow %>%
   tune_grid(resamples=folds,
