@@ -33,7 +33,7 @@ test_input <- vroom(file = "test.csv")
 # Recipes
 
 my_recipe <- recipe(type ~ ., data = rawdata) %>%
-  step_dummy(color)` %>% 
+  step_dummy(color) %>% 
   step_rm(id)
 
 prep_recipe <- prep(my_recipe)
