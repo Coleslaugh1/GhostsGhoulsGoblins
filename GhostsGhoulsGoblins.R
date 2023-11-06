@@ -140,7 +140,7 @@ final_nn_wf <-
 nn_predictions <- final_nn_wf %>%
   predict(new_data = test_input, type="class")
 
-format_and_write(svm_predictions, "nn_preds.csv")
+format_and_write(nn_predictions, "nn_preds.csv")
 
 
 # tuned_nn %>% collect_metrics() %>%
