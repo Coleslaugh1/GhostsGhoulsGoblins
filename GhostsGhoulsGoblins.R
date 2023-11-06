@@ -115,7 +115,7 @@ nn_workflow <- workflow() %>%
   add_recipe(my_recipe) %>%
   add_model(nn_model)
 
-tuning_grid <- grid_regular(hidden_units(range=c(1, maxHiddenUnits)),
+tuning_grid <- grid_regular(hidden_units(range=c(1, 10)),
                             levels=4)
 
 folds <- vfold_cv(rawdata, v = 10, repeats=1)
