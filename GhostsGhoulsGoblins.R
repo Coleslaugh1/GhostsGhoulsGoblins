@@ -27,14 +27,18 @@ library(kernlab)
 rawdata <- vroom(file = "train.csv") %>%
   mutate(type=factor(type))
 test_input <- vroom(file = "test.csv")
+
 # missing <- vroom(file = "trainWithMissingValues.csv") %>%
 #   mutate(type=factor(type))
 
 # Recipes
 
 my_recipe <- recipe(type ~ ., data = rawdata) %>%
+  update_role(id, new_role="id") %>% 
+  step_mutate_at(color,fn = factor) %>% 
   step_dummy(color) %>% 
-  step_rm(id)
+  step_rm(id) %>% 
+  step_range(all_numeric_predictors(), min=0, max=1)
 
 prep_recipe <- prep(my_recipe)
 baked_data <- bake(prep_recipe, new_data = rawdata)
@@ -52,7 +56,7 @@ baked_data <- bake(prep_recipe, new_data = rawdata)
 format_and_write <- function(predictions, file){
   final_preds <- predictions %>%
     mutate(type = .pred_class) %>%
-    mutate(id = c(1:length(.pred_class))) %>%
+    mutate(id = test_input$id) %>%
     select(id, type)
 
   vroom_write(final_preds,file,delim = ",")
@@ -62,23 +66,63 @@ format_and_write <- function(predictions, file){
 
 # svm ---------------------------------------------------------------------
 
-svm_model <- svm_rbf(rbf_sigma=tune(), cost=tune()) %>% # set or tune
-  set_mode("classification") %>%
-  set_engine("kernlab")
+# svm_model <- svm_rbf(rbf_sigma=tune(), cost=tune()) %>% # set or tune
+#   set_mode("classification") %>%
+#   set_engine("kernlab")
+# 
+# svm_workflow <- workflow() %>%
+#   add_recipe(my_recipe) %>%
+#   add_model(svm_model)
+# 
+# tuning_grid <- grid_regular(rbf_sigma(),
+#                             cost(),
+#                             levels = 4)
+# 
+# folds <- vfold_cv(rawdata, v = 10, repeats=1)
+# 
+# cl <- makePSOCKcluster(4)
+# registerDoParallel(cl)
+# CV_results <- svm_workflow %>%
+#   tune_grid(resamples=folds,
+#             grid=tuning_grid,
+#             metrics=metric_set(accuracy))
+# stopCluster(cl)
+# 
+# bestTune <- CV_results %>%
+#   select_best("accuracy")
+# 
+# final_svm_wf <-
+#   svm_workflow %>%
+#   finalize_workflow(bestTune) %>%
+#   fit(data=rawdata)
+# 
+# 
+# svm_predictions <- final_svm_wf %>%
+#   predict(new_data = test_input, type="class")
+# 
+# format_and_write(svm_predictions, "svm_preds.csv")
 
-svm_workflow <- workflow() %>%
+
+# Neural Nets -------------------------------------------------------------
+
+nn_model <- mlp(hidden_units = tune(),
+                epochs = 50, #or 100 or 250
+                activation="relu") %>%
+  set_engine("keras", verbose=0) %>% #verbose = 0 prints off less
+  set_mode("classification")
+
+nn_workflow <- workflow() %>%
   add_recipe(my_recipe) %>%
-  add_model(svm_model)
+  add_model(nn_model)
 
-tuning_grid <- grid_regular(rbf_sigma(),
-                            cost(),
-                            levels = 4)
+tuning_grid <- grid_regular(hidden_units(range=c(1, maxHiddenUnits)),
+                            levels=4)
 
 folds <- vfold_cv(rawdata, v = 10, repeats=1)
 
 cl <- makePSOCKcluster(10)
 registerDoParallel(cl)
-CV_results <- svm_workflow %>%
+CV_results <- nn_workflow %>%
   tune_grid(resamples=folds,
             grid=tuning_grid,
             metrics=metric_set(accuracy))
@@ -87,13 +131,21 @@ stopCluster(cl)
 bestTune <- CV_results %>%
   select_best("accuracy")
 
-final_svm_wf <-
-  svm_workflow %>%
+final_nn_wf <-
+  nn_workflow %>%
   finalize_workflow(bestTune) %>%
   fit(data=rawdata)
 
 
-svm_predictions <- final_svm_wf %>%
+nn_predictions <- final_nn_wf %>%
   predict(new_data = test_input, type="class")
 
-format_and_write(svm_predictions, "svm_preds.csv")
+format_and_write(svm_predictions, "nn_preds.csv")
+
+
+# tuned_nn %>% collect_metrics() %>%
+# filter(.metric=="accuracy") %>%
+# ggplot(aes(x=hidden_units, y=mean)) + geom_line()
+
+## CV tune, finalize and predict here and save results
+## This takes a few min (10 on my laptop) so run it on becker if you want
