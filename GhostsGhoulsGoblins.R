@@ -106,41 +106,41 @@ format_and_write <- function(predictions, file){
 
 # Neural Nets -------------------------------------------------------------
 
-nn_model <- mlp(hidden_units = tune(),
-                epochs = 50) %>% #or 100 or 250
-  set_engine("nnet") %>% #verbose = 0 prints off less
-  set_mode("classification")
-
-nn_workflow <- workflow() %>%
-  add_recipe(my_recipe) %>%
-  add_model(nn_model)
-
-tuning_grid <- grid_regular(hidden_units(range=c(1, 10)),
-                            levels=4)
-
-folds <- vfold_cv(rawdata, v = 10, repeats=1)
-
-# cl <- makePSOCKcluster(10)
-# registerDoParallel(cl)
-CV_results <- nn_workflow %>%
-  tune_grid(resamples=folds,
-            grid=tuning_grid,
-            metrics=metric_set(accuracy))
-# stopCluster(cl)
-
-bestTune <- CV_results %>%
-  select_best("accuracy")
-
-final_nn_wf <-
-  nn_workflow %>%
-  finalize_workflow(bestTune) %>%
-  fit(data=rawdata)
-
-
-nn_predictions <- final_nn_wf %>%
-  predict(new_data = test_input, type="class")
-
-format_and_write(nn_predictions, "nn_preds.csv")
+# nn_model <- mlp(hidden_units = tune(),
+#                 epochs = 50) %>% #or 100 or 250
+#   set_engine("nnet") %>% #verbose = 0 prints off less
+#   set_mode("classification")
+# 
+# nn_workflow <- workflow() %>%
+#   add_recipe(my_recipe) %>%
+#   add_model(nn_model)
+# 
+# tuning_grid <- grid_regular(hidden_units(range=c(1, 10)),
+#                             levels=4)
+# 
+# folds <- vfold_cv(rawdata, v = 10, repeats=1)
+# 
+# # cl <- makePSOCKcluster(10)
+# # registerDoParallel(cl)
+# CV_results <- nn_workflow %>%
+#   tune_grid(resamples=folds,
+#             grid=tuning_grid,
+#             metrics=metric_set(accuracy))
+# # stopCluster(cl)
+# 
+# bestTune <- CV_results %>%
+#   select_best("accuracy")
+# 
+# final_nn_wf <-
+#   nn_workflow %>%
+#   finalize_workflow(bestTune) %>%
+#   fit(data=rawdata)
+# 
+# 
+# nn_predictions <- final_nn_wf %>%
+#   predict(new_data = test_input, type="class")
+# 
+# format_and_write(nn_predictions, "nn_preds.csv")
 
 
 # CV_results %>% collect_metrics() %>%
@@ -154,65 +154,27 @@ format_and_write(nn_predictions, "nn_preds.csv")
 # Boosting & BART ---------------------------------------------------------
 
 # Boost
-library(lightgbm)
-
-boost_model <- boost_tree(tree_depth=tune(),
-                          trees=tune(),
-                          learn_rate=tune()) %>%
-  set_engine("lightgbm") %>% #or "xgboost" but lightgbm is faster
-  set_mode("classification")
-
-boost_workflow <- workflow() %>%
-  add_recipe(my_recipe) %>%
-  add_model(boost_model)
-
-tuning_grid <- grid_regular(tree_depth(),
-                            trees(),
-                            levels=4)
-
-folds <- vfold_cv(rawdata, v = 10, repeats=1)
-
-cl <- makePSOCKcluster(10)
-registerDoParallel(cl)
-CV_results <- boost_workflow %>%
-  tune_grid(resamples=folds,
-            grid=tuning_grid,
-            metrics=metric_set(accuracy))
-stopCluster(cl)
-
-bestTune <- CV_results %>%
-  select_best("accuracy")
-
-final_boost_wf <-
-  boost_workflow %>%
-  finalize_workflow(bestTune) %>%
-  fit(data=rawdata)
-
-
-boost_predictions <- final_boost_wf %>%
-  predict(new_data = test_input, type="class")
-
-format_and_write(boost_predictions, "boost_preds.csv")
-
-# Bart
-# library(bonsai)
+# library(lightgbm)
 # 
-# bart_model <- bart(trees=tune()) %>% # BART figures out depth and learn_rate
-#   set_engine("dbarts") %>% # might need to install
+# boost_model <- boost_tree(tree_depth=tune(),
+#                           trees=tune(),
+#                           learn_rate=tune()) %>%
+#   set_engine("lightgbm") %>% #or "xgboost" but lightgbm is faster
 #   set_mode("classification")
 # 
-# bart_workflow <- workflow() %>%
+# boost_workflow <- workflow() %>%
 #   add_recipe(my_recipe) %>%
-#   add_model(bart_model)
+#   add_model(boost_model)
 # 
-# tuning_grid <- grid_regular(trees(),
+# tuning_grid <- grid_regular(tree_depth(),
+#                             trees(),
 #                             levels=4)
 # 
 # folds <- vfold_cv(rawdata, v = 10, repeats=1)
 # 
 # cl <- makePSOCKcluster(10)
 # registerDoParallel(cl)
-# CV_results <- bart_workflow %>%
+# CV_results <- boost_workflow %>%
 #   tune_grid(resamples=folds,
 #             grid=tuning_grid,
 #             metrics=metric_set(accuracy))
@@ -221,13 +183,51 @@ format_and_write(boost_predictions, "boost_preds.csv")
 # bestTune <- CV_results %>%
 #   select_best("accuracy")
 # 
-# final_bart_wf <-
-#   bart_workflow %>%
+# final_boost_wf <-
+#   boost_workflow %>%
 #   finalize_workflow(bestTune) %>%
 #   fit(data=rawdata)
 # 
 # 
-# bart_predictions <- final_bart_wf %>%
+# boost_predictions <- final_boost_wf %>%
 #   predict(new_data = test_input, type="class")
 # 
-# format_and_write(bart_predictions, "bart_preds.csv")
+# format_and_write(boost_predictions, "boost_preds.csv")
+
+# Bart
+library(bonsai)
+
+bart_model <- bart(trees=tune()) %>% # BART figures out depth and learn_rate
+  set_engine("dbarts") %>% # might need to install
+  set_mode("classification")
+
+bart_workflow <- workflow() %>%
+  add_recipe(my_recipe) %>%
+  add_model(bart_model)
+
+tuning_grid <- grid_regular(trees(),
+                            levels=4)
+
+folds <- vfold_cv(rawdata, v = 10, repeats=1)
+
+cl <- makePSOCKcluster(10)
+registerDoParallel(cl)
+CV_results <- bart_workflow %>%
+  tune_grid(resamples=folds,
+            grid=tuning_grid,
+            metrics=metric_set(accuracy))
+stopCluster(cl)
+
+bestTune <- CV_results %>%
+  select_best("accuracy")
+
+final_bart_wf <-
+  bart_workflow %>%
+  finalize_workflow(bestTune) %>%
+  fit(data=rawdata)
+
+
+bart_predictions <- final_bart_wf %>%
+  predict(new_data = test_input, type="class")
+
+format_and_write(bart_predictions, "bart_preds.csv")
