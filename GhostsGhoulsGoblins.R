@@ -42,7 +42,17 @@ my_recipe <- recipe(type ~ ., data = rawdata) %>%
   step_mutate_at(color,fn = factor) %>% 
   step_dummy(color) %>% 
   step_rm(id) %>% 
-  step_range(all_numeric_predictors(), min=0, max=1)
+  step_range(all_numeric_predictors(), min=0, max=1) %>% 
+  step_normalize(all_numeric_predictors())
+  
+my_recipe <- recipe(type ~ ., data = rawdata) %>%
+  update_role(id, new_role="id") %>% 
+  step_mutate_at(color,fn = factor) %>% 
+  step_rm(color) %>% 
+  step_rm(id) %>% 
+  step_range(all_numeric_predictors(), min=0, max=1) #%>% 
+  #step_normalize(all_numeric_predictors())
+
 
 prep_recipe <- prep(my_recipe)
 baked_data <- bake(prep_recipe, new_data = rawdata)
@@ -61,7 +71,7 @@ format_and_write <- function(predictions, file){
   final_preds <- predictions %>%
     mutate(type = .pred_class) %>%
     mutate(id = test_input$id) %>%
-    select(id, type)
+    dplyr::select(id, type)
 
   vroom_write(final_preds,file,delim = ",")
   #save(file="./MyFile.RData", list=c("object1", "object2",...))
@@ -197,37 +207,245 @@ format_and_write <- function(predictions, file){
 # format_and_write(boost_predictions, "boost_preds.csv")
 
 # Bart
-bart_model <- parsnip::bart(trees=tune()) %>% # BART figures out depth and learn_rate
-  set_engine("dbarts") %>% # might need to install
-  set_mode("classification")
+# bart_model <- parsnip::bart(trees=tune()) %>% # BART figures out depth and learn_rate
+#   set_engine("dbarts") %>% # might need to install
+#   set_mode("classification")
+# 
+# bart_workflow <- workflow() %>%
+#   add_recipe(my_recipe) %>%
+#   add_model(bart_model)
+# 
+# tuning_grid <- grid_regular(trees(),
+#                             levels=4)
+# 
+# folds <- vfold_cv(rawdata, v = 10, repeats=1)
+# 
+# cl <- makePSOCKcluster(10)
+# registerDoParallel(cl)
+# CV_results <- bart_workflow %>%
+#   tune_grid(resamples=folds,
+#             grid=tuning_grid,
+#             metrics=metric_set(accuracy))
+# stopCluster(cl)
+# 
+# bestTune <- CV_results %>%
+#   select_best("accuracy")
+# 
+# final_bart_wf <-
+#   bart_workflow %>%
+#   finalize_workflow(bestTune) %>%
+#   fit(data=rawdata)
+# 
+# 
+# bart_predictions <- final_bart_wf %>%
+#   predict(new_data = test_input, type="class")
+# 
+# format_and_write(bart_predictions, "bart_preds.csv")
 
-bart_workflow <- workflow() %>%
+# Discriminant Analysis linear ---------------------------------------------------
+
+# library(mda)
+# dal_model <- discrim_linear(penalty = tune()) %>%
+#   set_mode("classification") %>%
+#   set_engine("mda")
+# 
+# dal_workflow <- workflow() %>%
+#   add_recipe(my_recipe) %>%
+#   add_model(dal_model)
+# 
+# tuning_grid <- grid_regular(penalty(),
+#                             levels = 4)
+# 
+# folds <- vfold_cv(rawdata, v = 10, repeats=1)
+# 
+# # cl <- makePSOCKcluster(4)
+# # registerDoParallel(cl)
+# CV_results <- dal_workflow %>%
+#   tune_grid(resamples=folds,
+#             grid=tuning_grid,
+#             metrics=metric_set(accuracy))
+# # stopCluster(cl)
+# 
+# bestTune <- CV_results %>%
+#   select_best("accuracy")
+# 
+# # final_dal_wf <-
+# #   dal_workflow %>%
+# #   fit(data=rawdata)
+# 
+# final_dal_wf <-
+#   dal_workflow %>%
+#   finalize_workflow(bestTune) %>%
+#   fit(data=rawdata)
+# 
+# dal_predictions <- final_dal_wf %>%
+#   predict(new_data = test_input, type="class")
+# 
+# format_and_write(dal_predictions, "dal_preds.csv")
+
+# Discriminant Analysis flexible ---------------------------------------------------
+
+# library(earth)
+# daf_model <- discrim_flexible(num_terms = tune(),
+#                             prod_degree = tune(),
+#                             prune_method = tune()) %>%
+#   set_mode("classification") %>%
+#   set_engine("earth")
+# 
+# daf_workflow <- workflow() %>%
+#   add_recipe(my_recipe) %>%
+#   add_model(daf_model)
+# 
+# tuning_grid <- grid_regular(num_terms(range=c(1, 10)),
+#                             prod_degree(),
+#                             prune_method(),
+#                             levels = 4)
+# 
+# folds <- vfold_cv(rawdata, v = 10, repeats=1)
+# 
+# # cl <- makePSOCKcluster(4)
+# # registerDoParallel(cl)
+# CV_results <- daf_workflow %>%
+#   tune_grid(resamples=folds,
+#             grid=tuning_grid,
+#             metrics=metric_set(accuracy))
+# # stopCluster(cl)
+# 
+# bestTune <- CV_results %>%
+#   select_best("accuracy")
+# 
+# # final_dal_wf <-
+# #   dal_workflow %>%
+# #   fit(data=rawdata)
+# 
+# final_daf_wf <-
+#   daf_workflow %>%
+#   finalize_workflow(bestTune) %>%
+#   fit(data=rawdata)
+# 
+# daf_predictions <- final_daf_wf %>%
+#   predict(new_data = test_input, type="class")
+# 
+# format_and_write(daf_predictions, "daf_preds.csv")
+
+# Discriminant Analysis regularized ---------------------------------------------------
+
+# library(klaR)
+# dar_model <- discrim_regularized(frac_common_cov = tune(),
+#                                  frac_identity = tune()) %>%
+#   set_mode("classification") %>%
+#   set_engine("klaR")
+# 
+# dar_workflow <- workflow() %>%
+#   add_recipe(my_recipe) %>%
+#   add_model(dar_model)
+# 
+# tuning_grid <- grid_regular(frac_common_cov(),
+#                             frac_identity(),
+#                             levels = 4)
+# 
+# folds <- vfold_cv(rawdata, v = 5, repeats=1)
+# 
+# # cl <- makePSOCKcluster(4)
+# # registerDoParallel(cl)
+# CV_results <- dar_workflow %>%
+#   tune_grid(resamples=folds,
+#             grid=tuning_grid,
+#             metrics=metric_set(accuracy))
+# # stopCluster(cl)
+# 
+# bestTune <- CV_results %>%
+#   select_best("accuracy")
+# 
+# # final_dal_wf <-
+# #   dal_workflow %>%
+# #   fit(data=rawdata)
+# 
+# final_dar_wf <-
+#   dar_workflow %>%
+#   finalize_workflow(bestTune) %>%
+#   fit(data=rawdata)
+# 
+# dar_predictions <- final_dar_wf %>%
+#   predict(new_data = test_input, type="class")
+# 
+# format_and_write(dar_predictions, "dar_preds.csv")
+
+# Discriminant Analysis Quad ---------------------------------------------------
+
+# library(sparsediscrim)
+# daq_model <- discrim_quad(regularization_method = tune()) %>%
+#   set_mode("classification") %>%
+#   set_engine("sparsediscrim")
+# 
+# daq_workflow <- workflow() %>%
+#   add_recipe(my_recipe) %>%
+#   add_model(daq_model)
+# 
+# tuning_grid <- grid_regular(regularization_method(),
+#                             levels = 4)
+# 
+# folds <- vfold_cv(rawdata, v = 4, repeats=1)
+# 
+# # cl <- makePSOCKcluster(4)
+# # registerDoParallel(cl)
+# CV_results <- daq_workflow %>%
+#   tune_grid(resamples=folds,
+#             grid=tuning_grid,
+#             metrics=metric_set(accuracy))
+# # stopCluster(cl)
+# 
+# bestTune <- CV_results %>%
+#   select_best("accuracy")
+# 
+# # final_dal_wf <-
+# #   dal_workflow %>%
+# #   fit(data=rawdata)
+# 
+# final_daq_wf <-
+#   daq_workflow %>%
+#   finalize_workflow(bestTune) %>%
+#   fit(data=rawdata)
+# 
+# daq_predictions <- final_daq_wf %>%
+#   predict(new_data = test_input, type="class")
+# 
+# format_and_write(daq_predictions, "daq_preds.csv")
+
+# Naive Bayes -------------------------------------------------------------
+
+nb_model <- naive_Bayes(Laplace=tune(), smoothness=tune()) %>%
+  set_mode("classification") %>%
+  set_engine("naivebayes")
+
+nb_workflow <- workflow() %>%
   add_recipe(my_recipe) %>%
-  add_model(bart_model)
+  add_model(nb_model)
 
-tuning_grid <- grid_regular(trees(),
-                            levels=4)
+tuning_grid <- grid_regular(Laplace(),
+                            smoothness(),
+                            levels = 5)
 
-folds <- vfold_cv(rawdata, v = 10, repeats=1)
+folds <- vfold_cv(rawdata, v = 5, repeats=1)
 
-cl <- makePSOCKcluster(10)
-registerDoParallel(cl)
-CV_results <- bart_workflow %>%
+#cl <- makePSOCKcluster(10)
+#registerDoParallel(cl)
+CV_results <- nb_workflow %>%
   tune_grid(resamples=folds,
             grid=tuning_grid,
             metrics=metric_set(accuracy))
-stopCluster(cl)
+#stopCluster(cl)
 
 bestTune <- CV_results %>%
   select_best("accuracy")
 
-final_bart_wf <-
-  bart_workflow %>%
+final_nb_wf <-
+  nb_workflow %>%
   finalize_workflow(bestTune) %>%
   fit(data=rawdata)
 
 
-bart_predictions <- final_bart_wf %>%
+nb_predictions <- final_nb_wf %>%
   predict(new_data = test_input, type="class")
 
-format_and_write(bart_predictions, "bart_preds.csv")
+format_and_write(nb_predictions, "nb_preds.csv")
